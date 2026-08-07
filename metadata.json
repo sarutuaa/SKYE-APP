@@ -1,0 +1,6 @@
+{
+  "name": "ตารางเรียนน้องสกาย",
+  "description": "แอปผู้ช่วยคุณแม่ จัดการการบ้าน สอบ และกิจกรรมโรงเรียนของลูก พร้อม AI ช่วยอ่านข้อความครู",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

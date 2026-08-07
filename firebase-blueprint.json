@@ -1,0 +1,22 @@
+{
+  "entities": {
+    "tasks": {
+      "title": "Tasks",
+      "description": "School homework, exams, and activities for students",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "type": { "type": "string", "enum": ["homework", "exam", "activity"] },
+        "title": { "type": "string" },
+        "subject": { "type": "string" },
+        "date": { "type": "string" },
+        "notes": { "type": "string" },
+        "status": { "type": "string", "enum": ["not_started", "prepared", "done"] },
+        "created_by": { "type": "string" },
+        "updated_at": { "type": "string" },
+        "child_id": { "type": "string" }
+      },
+      "required": ["type", "title", "date", "status"]
+    }
+  }
+}

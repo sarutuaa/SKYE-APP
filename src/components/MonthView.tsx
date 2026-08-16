@@ -154,6 +154,16 @@ export const MonthView: React.FC<MonthViewProps> = ({
                       >
                         <span className="text-[10px]">{typeMeta.icon}</span>
                         <span className="truncate">{item.title}</span>
+                        {item.imageUrl && (
+                          <span className="material-symbols-outlined text-[11px] shrink-0 text-[#006a4e]">
+                            image
+                          </span>
+                        )}
+                        {item.attachments && item.attachments.length > 0 && (
+                          <span className="material-symbols-outlined text-[11px] shrink-0 text-[#185abd]">
+                            attach_file
+                          </span>
+                        )}
                       </div>
                     );
                   })}

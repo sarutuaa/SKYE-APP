@@ -1,17 +1,20 @@
 import React, { useState } from 'react';
-import { AiParsedItem, TaskType, TYPE_META } from '../types';
+import { AiParsedItem, TaskType, TYPE_META, STUDENTS } from '../types';
 
 interface AiAssistantModalProps {
   isOpen: boolean;
+  activeChildId?: string;
   onClose: () => void;
-  onBulkSave: (items: AiParsedItem[]) => Promise<void>;
+  onBulkSave: (items: AiParsedItem[], targetChildId: string) => Promise<void>;
 }
 
 export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   isOpen,
+  activeChildId = 'sky',
   onClose,
   onBulkSave,
 }) => {
+  const [targetChildId, setTargetChildId] = useState<string>(activeChildId);
   const [text, setText] = useState('');
   const [file, setFile] = useState<{ name: string; base64: string; type: string } | null>(null);
   const [isParsing, setIsParsing] = useState(false);
@@ -108,7 +111,7 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
 
     setIsSaving(true);
     try {
-      await onBulkSave(selected);
+      await onBulkSave(selected, targetChildId);
       onClose();
       // reset modal state
       setParsedResults(null);
@@ -124,12 +127,15 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
   return (
     <div
       onClick={onClose}
-      className="fixed inset-0 bg-[#1f1b15]/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fadeIn"
+      className="fixed inset-0 bg-[#1f1b15]/60 backdrop-blur-xs flex items-center justify-center max-sm:items-end z-50 p-3 sm:p-4 max-sm:p-0 animate-fadeIn"
     >
       <div
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-3xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 sm:p-8 shadow-2xl border-2 border-[#eae1d6] animate-popIn flex flex-col gap-5"
+        className="bg-white rounded-3xl max-sm:rounded-b-none max-sm:rounded-t-3xl w-full max-w-xl max-h-[90vh] max-sm:max-h-[92vh] overflow-y-auto p-5 sm:p-8 shadow-2xl border-2 border-[#eae1d6] max-sm:border-x-0 max-sm:border-b-0 animate-popIn flex flex-col gap-5"
       >
+        {/* Mobile Drag Indicator */}
+        <div className="w-12 h-1.5 bg-[#eae1d6] rounded-full mx-auto sm:hidden" />
+
         {/* Header */}
         <div className="flex justify-between items-center">
           <h3 className="text-xl sm:text-2xl font-black text-[#002118] flex items-center gap-2">
@@ -207,6 +213,36 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
         ) : (
           <>
             {/* Parsed Output Review */}
+            {/* Target Student Selector */}
+            <div className="bg-[#f0f9f5] border-2 border-[#98d8c1] p-3 rounded-2xl">
+              <label className="block text-xs font-extrabold text-[#296956] mb-1.5">
+                บันทึกการบ้านเข้าสมุดของ:
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {STUDENTS.map((st) => {
+                  const active = targetChildId === st.id;
+                  return (
+                    <button
+                      key={st.id}
+                      type="button"
+                      onClick={() => setTargetChildId(st.id)}
+                      className={`py-1.5 px-2 rounded-xl text-xs font-bold flex items-center justify-center gap-1 border-2 transition-all cursor-pointer ${
+                        active ? 'shadow-xs border-current' : 'bg-white border-[#eae1d6] opacity-75'
+                      }`}
+                      style={{
+                        backgroundColor: active ? st.bgColor : '#ffffff',
+                        borderColor: active ? st.themeColor : '#eae1d6',
+                        color: active ? st.themeColor : '#707974',
+                      }}
+                    >
+                      <img src={st.avatarUrl} alt={st.name} className="w-4 h-4 rounded-full object-cover" />
+                      <span className="truncate">{st.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <span className="font-bold text-sm text-[#296956]">
                 พบ {parsedResults.length} รายการที่สกัดได้
@@ -292,6 +328,18 @@ export const AiAssistantModal: React.FC<AiAssistantModalProps> = ({
                       onChange={(e) => updateItemField(idx, 'notes', e.target.value)}
                       placeholder="หมายเหตุเพิ่มเติม"
                       className="p-2.5 rounded-xl border border-[#eae1d6] text-xs font-bold bg-[#fafafa]"
+                    />
+                  </div>
+
+                  {/* Image Attachment field */}
+                  <div className="flex items-center gap-1.5 bg-[#e2f5ee] p-1.5 rounded-xl border border-[#a2e3cd]">
+                    <span className="material-symbols-outlined text-[16px] text-[#006a4e]">add_a_photo</span>
+                    <input
+                      type="url"
+                      value={item.imageUrl || ''}
+                      onChange={(e) => updateItemField(idx, 'imageUrl', e.target.value)}
+                      placeholder="URL รูปภาพประกอบ (ถ้ามี)"
+                      className="w-full text-xs font-semibold text-[#006a4e] bg-transparent focus:outline-none placeholder:text-[#006a4e]/50"
                     />
                   </div>
                 </div>

@@ -4,6 +4,7 @@ import {
   TaskType,
   ViewMode,
   AiParsedItem,
+  STUDENTS,
 } from './types';
 import {
   getFirestoreTasks,
@@ -13,6 +14,7 @@ import {
   seedFirestoreWithCsvData,
 } from './lib/firebase';
 import { Header } from './components/Header';
+import { ChildSelector } from './components/ChildSelector';
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { FilterChips } from './components/FilterChips';
 import { ListView } from './components/ListView';
@@ -20,23 +22,17 @@ import { WeekView } from './components/WeekView';
 import { MonthView } from './components/MonthView';
 import { TaskModal } from './components/TaskModal';
 import { AiAssistantModal } from './components/AiAssistantModal';
-import { LoginModal } from './components/LoginModal';
 import { SettingsModal } from './components/SettingsModal';
+import { InstallPwaModal } from './components/InstallPwaModal';
 import { BottomNav } from './components/BottomNav';
 import { FloatingActions } from './components/FloatingActions';
 
-export default function App() {
-  const [authed, setAuthed] = useState<boolean>(() => {
-    return sessionStorage.getItem('sky_app_authed') === 'true';
-  });
-  const [loginError, setLoginError] = useState<string>('');
+import { StudentLandingPage } from './components/StudentLandingPage';
 
-  const [childInfo, setChildInfo] = useState({
-    name: 'น้องสกาย',
-    grade: 'ป.1/3',
-    avatarUrl:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuATFc5nW9SZL-oTbNhOGE6IvYzsaLScTPv2INsbO-56T3L0mnIXr7rKmsY1zgtS9ER4Zz_Kjx68mnVe-c7uYke2qE0aU1ucbmAHDPEOU-cT6Qh2kZQL4_e3orVv96Vmu1kP7QBgj0YdrZU9Jmd5yb864ezQ_XBphnw9yArd6CF99nPac25C1F4XFh4l_ga296IDuwpIWPu3gZzU7wu90PvHitVc0DkVLiZ8hkKd9tkUbX6yKvi271Sc',
-  });
+export default function App() {
+  const [activeScreen, setActiveScreen] = useState<'landing' | 'detail'>('landing');
+  const [selectedChildId, setSelectedChildId] = useState<string>('sky');
+  const activeChild = STUDENTS.find((s) => s.id === selectedChildId) || STUDENTS[0];
 
   const [tasks, setTasks] = useState<Task[]>([]);
   const [syncStatus, setSyncStatus] = useState<'syncing' | 'ok' | 'error'>('ok');
@@ -56,6 +52,7 @@ export default function App() {
 
   const [isAiModalOpen, setIsAiModalOpen] = useState(false);
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+  const [isInstallPwaModalOpen, setIsInstallPwaModalOpen] = useState(false);
 
   // Fetch tasks from Firestore
   const fetchTasks = useCallback(async () => {
@@ -72,44 +69,8 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (authed) {
-      fetchTasks();
-    }
-  }, [authed, fetchTasks]);
-
-  // Auth verify
-  const handleVerifyPin = async (pin: string): Promise<boolean> => {
-    try {
-      const res = await fetch('/api/auth/verify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pin }),
-      });
-      if (res.ok) {
-        setAuthed(true);
-        sessionStorage.setItem('sky_app_authed', 'true');
-        fetchTasks();
-        return true;
-      } else {
-        const json = await res.json();
-        setLoginError(json.error || 'รหัสผ่านไม่ถูกต้อง');
-        return false;
-      }
-    } catch (err) {
-      if (pin === '5264') {
-        setAuthed(true);
-        sessionStorage.setItem('sky_app_authed', 'true');
-        fetchTasks();
-        return true;
-      }
-      return false;
-    }
-  };
-
-  const handleLogout = () => {
-    setAuthed(false);
-    sessionStorage.removeItem('sky_app_authed');
-  };
+    fetchTasks();
+  }, [fetchTasks]);
 
   // Toggle category filter chips
   const handleToggleType = (typeKey: TaskType) => {
@@ -154,6 +115,7 @@ export default function App() {
     const todayStr = new Date().toISOString().split('T')[0];
     setTaskDraft({
       id: '',
+      childId: selectedChildId,
       type: 'homework',
       title: '',
       subject: '',
@@ -161,6 +123,7 @@ export default function App() {
       time: '',
       location: '',
       notes: '',
+      imageUrl: '',
       status: 'not_started',
     });
     setIsEditingTask(false);
@@ -175,9 +138,16 @@ export default function App() {
 
   const handleSaveTask = async (task: Task) => {
     setSyncStatus('syncing');
-    if (isEditingTask && task.id) {
+    const taskWithChild = {
+      ...task,
+      childId: task.childId || selectedChildId,
+    };
+
+    if (isEditingTask && taskWithChild.id) {
+      // Optimistic update
+      setTasks((prev) => prev.map((t) => (t.id === taskWithChild.id ? { ...t, ...taskWithChild } : t)));
       try {
-        await updateFirestoreTask(task.id, task);
+        await updateFirestoreTask(taskWithChild.id, taskWithChild);
         await fetchTasks();
         setSyncStatus('ok');
         setLastSynced(new Date());
@@ -186,8 +156,12 @@ export default function App() {
         setSyncStatus('error');
       }
     } else {
+      const generatedId = taskWithChild.id || 'task-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6);
+      const newTask = { ...taskWithChild, id: generatedId };
+      // Optimistic update
+      setTasks((prev) => [newTask, ...prev]);
       try {
-        await addFirestoreTask(task);
+        await addFirestoreTask(newTask);
         await fetchTasks();
         setSyncStatus('ok');
         setLastSynced(new Date());
@@ -200,6 +174,8 @@ export default function App() {
 
   const handleDeleteTask = async (taskId: string) => {
     setSyncStatus('syncing');
+    // Optimistic delete
+    setTasks((prev) => prev.filter((t) => t.id !== taskId));
     try {
       await deleteFirestoreTask(taskId);
       await fetchTasks();
@@ -212,16 +188,19 @@ export default function App() {
   };
 
   // AI Bulk Save
-  const handleAiBulkSave = async (parsedItems: AiParsedItem[]) => {
+  const handleAiBulkSave = async (parsedItems: AiParsedItem[], targetChildId: string) => {
     setSyncStatus('syncing');
     try {
       for (const item of parsedItems) {
         await addFirestoreTask({
+          childId: targetChildId || selectedChildId,
           type: item.type || 'homework',
           title: item.title,
           subject: item.subject || '',
           date: item.date || new Date().toISOString().split('T')[0],
           notes: item.notes || '',
+          imageUrl: item.imageUrl || '',
+          attachments: item.attachments || [],
           status: 'not_started',
         });
       }
@@ -235,13 +214,12 @@ export default function App() {
   };
 
   // Update Settings
-  const handleUpdateSettings = async (name: string, grade: string, newPin?: string) => {
-    setChildInfo((prev) => ({ ...prev, name, grade }));
+  const handleUpdateSettings = async (name: string, grade: string) => {
     try {
       await fetch('/api/auth/update-pin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ childName: name, grade, newPin }),
+        body: JSON.stringify({ childName: name, grade }),
       });
     } catch (err) {
       console.error(err);
@@ -261,97 +239,119 @@ export default function App() {
     }
   };
 
-  if (!authed) {
-    return <LoginModal onVerifyPin={handleVerifyPin} loginError={loginError} />;
-  }
-
-  // Filter tasks according to selected category chips
-  const filteredTasks = tasks.filter((t) => activeTypes[t.type]);
+  // Filter tasks according to selected child & category chips
+  const studentTasks = tasks.filter((t) => (t.childId || 'sky') === selectedChildId);
+  const filteredTasks = studentTasks.filter((t) => activeTypes[t.type]);
   const pendingTasks = filteredTasks.filter((t) => t.status !== 'done');
   const completedTasks = filteredTasks.filter((t) => t.status === 'done');
 
   return (
     <div className="min-h-screen bg-[#fff8f3] text-[#1f1b15] pb-28 md:pb-12 flex flex-col font-['Noto_Sans_Thai','Nunito_Sans',sans-serif]">
-      {/* Top Header */}
-      <Header
-        childName={childInfo.name}
-        childGrade={childInfo.grade}
-        avatarUrl={childInfo.avatarUrl}
-        syncStatus={syncStatus}
-        lastSynced={lastSynced}
-        onRefresh={fetchTasks}
-        onOpenAi={() => setIsAiModalOpen(true)}
-        onOpenAdd={() => handleOpenAddNew()}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-        onLogout={handleLogout}
-      />
-
-      {/* Main Container */}
-      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 flex flex-col gap-6 flex-1">
-        {/* View Switcher Tabs (รายการ / สัปดาห์ / เดือน / เสร็จแล้ว) */}
-        <ViewSwitcher currentView={view} onViewChange={setView} />
-
-        {/* Sticker-like Filter Chips */}
-        <FilterChips
-          activeTypes={activeTypes}
-          onToggleType={handleToggleType}
-          onOpenAddModal={() => handleOpenAddNew()}
+      {activeScreen === 'landing' ? (
+        <StudentLandingPage
+          onSelectChild={(childId) => {
+            setSelectedChildId(childId);
+            setActiveScreen('detail');
+          }}
+          tasks={tasks}
+          onOpenAi={() => setIsAiModalOpen(true)}
+          onOpenAdd={() => handleOpenAddNew()}
+          onOpenSettings={() => setIsSettingsModalOpen(true)}
+          onOpenInstallPwa={() => setIsInstallPwaModalOpen(true)}
         />
-
-        {/* Active View */}
-        {view === 'list' && (
-          <ListView
-            tasks={pendingTasks}
-            onOpenEdit={handleOpenEdit}
-            onCycleStatus={handleCycleStatus}
+      ) : (
+        <>
+          {/* Top Header */}
+          <Header
+            childName={activeChild.name}
+            childGrade={activeChild.grade}
+            avatarUrl={activeChild.avatarUrl}
+            syncStatus={syncStatus}
+            lastSynced={lastSynced}
+            onRefresh={fetchTasks}
+            onOpenAi={() => setIsAiModalOpen(true)}
+            onOpenAdd={() => handleOpenAddNew()}
+            onOpenSettings={() => setIsSettingsModalOpen(true)}
+            onGoHome={() => setActiveScreen('landing')}
+            onOpenInstallPwa={() => setIsInstallPwaModalOpen(true)}
           />
-        )}
 
-        {view === 'completed' && (
-          <ListView
-            tasks={completedTasks}
-            onOpenEdit={handleOpenEdit}
-            onCycleStatus={handleCycleStatus}
-            isCompletedView={true}
+          {/* Main Container */}
+          <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 md:px-8 pt-4 sm:pt-6 flex flex-col gap-6 flex-1">
+            {/* Student Switcher Bar (3 Children) */}
+            <ChildSelector
+              selectedChildId={selectedChildId}
+              onSelectChild={setSelectedChildId}
+              tasks={tasks}
+            />
+
+            {/* View Switcher Tabs (รายการ / สัปดาห์ / เดือน / เสร็จแล้ว) */}
+            <ViewSwitcher currentView={view} onViewChange={setView} />
+
+            {/* Sticker-like Filter Chips */}
+            <FilterChips
+              activeTypes={activeTypes}
+              onToggleType={handleToggleType}
+              onOpenAddModal={() => handleOpenAddNew()}
+            />
+
+            {/* Active View */}
+            {view === 'list' && (
+              <ListView
+                tasks={pendingTasks}
+                onOpenEdit={handleOpenEdit}
+                onCycleStatus={handleCycleStatus}
+              />
+            )}
+
+            {view === 'completed' && (
+              <ListView
+                tasks={completedTasks}
+                onOpenEdit={handleOpenEdit}
+                onCycleStatus={handleCycleStatus}
+                isCompletedView={true}
+              />
+            )}
+
+            {view === 'week' && (
+              <WeekView
+                tasks={filteredTasks}
+                onOpenEdit={handleOpenEdit}
+                onOpenAddDate={handleOpenAddNew}
+              />
+            )}
+
+            {view === 'month' && (
+              <MonthView
+                tasks={filteredTasks}
+                onOpenEdit={handleOpenEdit}
+                onOpenAddDate={handleOpenAddNew}
+              />
+            )}
+          </main>
+
+          {/* Floating Action Buttons */}
+          <FloatingActions
+            onOpenAi={() => setIsAiModalOpen(true)}
+            onOpenAdd={() => handleOpenAddNew()}
           />
-        )}
 
-        {view === 'week' && (
-          <WeekView
-            tasks={filteredTasks}
-            onOpenEdit={handleOpenEdit}
-            onOpenAddDate={handleOpenAddNew}
+          {/* Mobile Bottom Navigation Bar */}
+          <BottomNav
+            currentView={view}
+            onViewChange={setView}
+            onOpenAiModal={() => setIsAiModalOpen(true)}
+            onOpenSettings={() => setIsSettingsModalOpen(true)}
           />
-        )}
-
-        {view === 'month' && (
-          <MonthView
-            tasks={filteredTasks}
-            onOpenEdit={handleOpenEdit}
-            onOpenAddDate={handleOpenAddNew}
-          />
-        )}
-      </main>
-
-      {/* Floating Action Buttons */}
-      <FloatingActions
-        onOpenAi={() => setIsAiModalOpen(true)}
-        onOpenAdd={() => handleOpenAddNew()}
-      />
-
-      {/* Mobile Bottom Navigation Bar */}
-      <BottomNav
-        currentView={view}
-        onViewChange={setView}
-        onOpenAiModal={() => setIsAiModalOpen(true)}
-        onOpenSettings={() => setIsSettingsModalOpen(true)}
-      />
+        </>
+      )}
 
       {/* Task Add/Edit Modal */}
       <TaskModal
         isOpen={isTaskModalOpen}
         isEditing={isEditingTask}
         taskDraft={taskDraft}
+        activeChildId={selectedChildId}
         onClose={() => setIsTaskModalOpen(false)}
         onSave={handleSaveTask}
         onDelete={handleDeleteTask}
@@ -360,6 +360,7 @@ export default function App() {
       {/* ✨ AI Assistant Modal */}
       <AiAssistantModal
         isOpen={isAiModalOpen}
+        activeChildId={selectedChildId}
         onClose={() => setIsAiModalOpen(false)}
         onBulkSave={handleAiBulkSave}
       />
@@ -368,10 +369,17 @@ export default function App() {
       <SettingsModal
         isOpen={isSettingsModalOpen}
         onClose={() => setIsSettingsModalOpen(false)}
-        childName={childInfo.name}
-        childGrade={childInfo.grade}
+        childName={activeChild.name}
+        childGrade={activeChild.grade}
         onUpdateInfo={handleUpdateSettings}
         onResetData={handleResetData}
+        onOpenInstallPwa={() => setIsInstallPwaModalOpen(true)}
+      />
+
+      {/* 📲 Install PWA Mobile Modal */}
+      <InstallPwaModal
+        isOpen={isInstallPwaModalOpen}
+        onClose={() => setIsInstallPwaModalOpen(false)}
       />
     </div>
   );

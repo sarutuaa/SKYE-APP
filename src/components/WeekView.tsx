@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Task, TYPE_META, STATUS_META } from '../types';
+import { normalizeAttachmentUrl } from '../utils/attachmentHelper';
 
 interface WeekViewProps {
   tasks: Task[];
@@ -13,6 +14,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
   onOpenAddDate,
 }) => {
   const [weekOffset, setWeekOffset] = useState(0);
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
 
   const getTodayDate = () => {
     const n = new Date();
@@ -59,64 +61,78 @@ export const WeekView: React.FC<WeekViewProps> = ({
       <div className="flex items-center justify-between gap-4 flex-wrap bg-white p-3 rounded-2xl border-2 border-[#eae1d6] shadow-sm">
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setWeekOffset(weekOffset - 1)}
-            className="w-10 h-10 rounded-full border-2 border-[#eae1d6] bg-white font-extrabold hover:bg-[#f6ece2] flex items-center justify-center transition-all active:scale-95"
+            onClick={() => setWeekOffset((prev) => prev - 1)}
+            className="w-9 h-9 rounded-xl border border-[#eae1d6] bg-[#faf6f0] hover:bg-[#f6ece2] flex items-center justify-center font-bold text-[#1f1b15] transition-colors cursor-pointer"
           >
             ‹
           </button>
-          <span className="font-bold text-base sm:text-lg text-[#1f1b15] px-2">
-            {rangeLabel}
-          </span>
           <button
-            onClick={() => setWeekOffset(weekOffset + 1)}
-            className="w-10 h-10 rounded-full border-2 border-[#eae1d6] bg-white font-extrabold hover:bg-[#f6ece2] flex items-center justify-center transition-all active:scale-95"
+            onClick={() => setWeekOffset(0)}
+            className={`px-3 py-1.5 rounded-xl border font-bold text-xs transition-colors cursor-pointer ${
+              weekOffset === 0
+                ? 'bg-[#98d8c1] border-[#98d8c1] text-[#002118]'
+                : 'border-[#eae1d6] bg-[#faf6f0] hover:bg-[#f6ece2] text-[#707974]'
+            }`}
+          >
+            สัปดาห์นี้
+          </button>
+          <button
+            onClick={() => setWeekOffset((prev) => prev + 1)}
+            className="w-9 h-9 rounded-xl border border-[#eae1d6] bg-[#faf6f0] hover:bg-[#f6ece2] flex items-center justify-center font-bold text-[#1f1b15] transition-colors cursor-pointer"
           >
             ›
           </button>
         </div>
 
-        <button
-          onClick={() => setWeekOffset(0)}
-          className="px-4 py-2 rounded-full border-2 border-[#98d8c1] bg-[#aff0d8] text-[#002118] font-extrabold text-sm hover:bg-[#98d8c1] transition-all shadow-xs"
-        >
-          สัปดาห์นี้ 🌟
-        </button>
+        <div className="font-extrabold text-sm sm:text-base text-[#1f1b15]">
+          📅 {rangeLabel}
+        </div>
       </div>
 
-      {/* 7-Day Columns */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 overflow-x-auto pb-4">
-        {weekDays.map((d, idx) => {
-          const dateKey = formatKey(d);
+      {/* 7 Days Columns */}
+      <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+        {weekDays.map((dayObj, index) => {
+          const dateKey = formatKey(dayObj);
           const isToday = dateKey === todayKey;
-          const dayItems = tasks.filter((t) => t.date === dateKey);
+          const dayTasks = tasks.filter((t) => t.date === dateKey);
 
           return (
             <div
               key={dateKey}
-              className={`rounded-2xl border-2 min-h-[220px] flex flex-col transition-all ${
+              className={`flex flex-col rounded-2xl border-2 transition-all min-h-[300px] ${
                 isToday
-                  ? 'bg-[#fcf2e7] border-[#ff9e9e] shadow-md'
-                  : 'bg-white border-[#eae1d6]'
+                  ? 'bg-[#f0f9f5] border-[#98d8c1] shadow-md'
+                  : 'bg-white border-[#eae1d6] shadow-xs'
               }`}
             >
               {/* Day Header */}
               <div
-                onClick={() => onOpenAddDate(dateKey)}
-                className={`p-3 text-center border-b-2 border-dashed border-[#eae1d6] cursor-pointer hover:bg-[#f6ece2]/50 transition-colors ${
-                  isToday ? 'bg-[#ffdad9]/30 text-[#763032]' : 'text-[#707974]'
+                className={`p-3 border-b-2 flex flex-col items-center justify-center ${
+                  isToday
+                    ? 'bg-[#98d8c1]/30 border-[#98d8c1]'
+                    : 'bg-[#faf6f0] border-[#eae1d6]'
                 }`}
               >
-                <div className="text-xs font-bold uppercase tracking-wider">
-                  {weekdayLabels[idx]}
-                </div>
-                <div className="text-xl font-extrabold mt-0.5">
-                  {d.getDate()}
-                </div>
+                <span className="text-[11px] font-extrabold text-[#707974]">
+                  {weekdayLabels[index]}
+                </span>
+                <span
+                  className={`text-lg font-black mt-0.5 ${
+                    isToday ? 'text-[#006a4e]' : 'text-[#1f1b15]'
+                  }`}
+                >
+                  {dayObj.getDate()}
+                </span>
+                {isToday && (
+                  <span className="mt-1 px-2 py-0.5 rounded-full bg-[#006a4e] text-white text-[9px] font-black tracking-wider">
+                    วันนี้
+                  </span>
+                )}
               </div>
 
-              {/* Day Tasks */}
-              <div className="flex flex-col gap-2 p-2.5 flex-1">
-                {dayItems.map((task) => {
+              {/* Tasks List for this day */}
+              <div className="p-2 flex flex-col gap-2 flex-1">
+                {dayTasks.map((task) => {
                   const typeMeta = TYPE_META[task.type] || TYPE_META.homework;
                   const statusMeta = STATUS_META[task.status] || STATUS_META.not_started;
 
@@ -138,6 +154,66 @@ export const WeekView: React.FC<WeekViewProps> = ({
                           {task.subject}
                         </div>
                       )}
+
+                      {/* Attachment / Image badges with direct open */}
+                      {((task.attachments && task.attachments.length > 0) || task.imageUrl) && (
+                        <div className="flex flex-wrap items-center gap-1 mt-0.5 z-20" onClick={(e) => e.stopPropagation()}>
+                          {task.attachments?.map((att) => {
+                            const isWebLink = att.url.startsWith('http://') || att.url.startsWith('https://') || att.isLink;
+                            const finalUrl = normalizeAttachmentUrl(att.url);
+                            
+                            if (isWebLink) {
+                              return (
+                                <a
+                                  key={att.id}
+                                  href={finalUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-md bg-white border border-black/15 text-[#002118] hover:bg-[#e8f0fe] transition-colors no-underline shadow-2xs"
+                                  title={`เปิดดู: ${att.name || 'เอกสาร'}`}
+                                >
+                                  <span>
+                                    {att.type === 'word' ? '📄' : att.type === 'pdf' ? '📕' : att.type === 'drive' ? '📁' : '🔗'}
+                                  </span>
+                                  <span className="truncate max-w-[65px]">{att.name || 'เอกสาร'}</span>
+                                  <span className="material-symbols-outlined text-[10px] opacity-70">open_in_new</span>
+                                </a>
+                              );
+                            }
+
+                            return (
+                              <button
+                                key={att.id}
+                                type="button"
+                                onClick={() => {
+                                  if (att.type === 'image') setPreviewImageUrl(att.url);
+                                  else window.open(att.url, '_blank');
+                                }}
+                                className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-md bg-white border border-black/15 text-[#002118] hover:bg-[#faf6f0] transition-colors shadow-2xs"
+                                title={att.name}
+                              >
+                                <span>
+                                  {att.type === 'image' ? '🖼️' : '📎'}
+                                </span>
+                                <span className="truncate max-w-[65px]">{att.name || 'ไฟล์'}</span>
+                              </button>
+                            );
+                          })}
+
+                          {task.imageUrl && !task.attachments?.some((a) => a.url === task.imageUrl) && (
+                            <button
+                              type="button"
+                              onClick={() => setPreviewImageUrl(task.imageUrl!)}
+                              className="inline-flex items-center gap-0.5 text-[9px] font-black px-1.5 py-0.5 rounded-md bg-[#e2f5ee] border border-[#a2e3cd] text-[#006a4e] hover:bg-[#c0eada] transition-colors shadow-2xs cursor-pointer"
+                              title="ดูรูปภาพแนบ"
+                            >
+                              <span className="material-symbols-outlined text-[12px]">image</span>
+                              <span>รูป</span>
+                            </button>
+                          )}
+                        </div>
+                      )}
+
                       <div className="text-[10px] font-bold text-[#07513f] mt-1 pt-1 border-t border-black/5 flex items-center gap-1">
                         <span className="material-symbols-outlined text-[12px]">
                           {statusMeta.materialIcon}
@@ -150,7 +226,7 @@ export const WeekView: React.FC<WeekViewProps> = ({
 
                 <button
                   onClick={() => onOpenAddDate(dateKey)}
-                  className="mt-auto py-1.5 px-2 rounded-xl border border-dashed border-[#bfc9c3] text-[#707974] hover:bg-[#f6ece2] text-xs font-bold flex items-center justify-center gap-1 opacity-70 hover:opacity-100 transition-all"
+                  className="mt-auto py-1.5 px-2 rounded-xl border border-dashed border-[#bfc9c3] text-[#707974] hover:bg-[#f6ece2] text-xs font-bold flex items-center justify-center gap-1 opacity-70 hover:opacity-100 transition-all cursor-pointer"
                 >
                   <span className="material-symbols-outlined text-[14px]">add</span>
                   <span>เพิ่มงาน</span>
@@ -160,6 +236,35 @@ export const WeekView: React.FC<WeekViewProps> = ({
           );
         })}
       </div>
+
+      {/* Full Image Preview Modal */}
+      {previewImageUrl && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/85 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setPreviewImageUrl(null)}
+        >
+          <div
+            className="relative max-w-3xl max-h-[90vh] flex flex-col items-center bg-white/10 p-3 sm:p-5 rounded-3xl border border-white/20 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <img
+              src={previewImageUrl}
+              alt="รูปภาพขยาย"
+              className="max-w-full max-h-[75vh] object-contain rounded-2xl shadow-2xl"
+            />
+            <div className="flex items-center gap-3 mt-4">
+              <button
+                type="button"
+                onClick={() => setPreviewImageUrl(null)}
+                className="px-6 py-2.5 rounded-full bg-white text-[#1f1b15] font-black text-sm shadow-xl hover:bg-[#e2f5ee] transition-all flex items-center gap-1.5 cursor-pointer hover:scale-105 active:scale-95"
+              >
+                <span className="material-symbols-outlined text-[18px]">close</span>
+                <span>ปิดหน้าต่าง</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

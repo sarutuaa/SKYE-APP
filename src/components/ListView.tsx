@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Task, TaskStatus, TYPE_META, STATUS_META, STATUS_ORDER } from '../types';
+import { AttachmentList } from './AttachmentList';
 
 interface ListViewProps {
   tasks: Task[];
@@ -14,6 +15,7 @@ export const ListView: React.FC<ListViewProps> = ({
   onCycleStatus,
   isCompletedView = false,
 }) => {
+  const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const getTodayStr = (offset = 0) => {
     const d = new Date();
     d.setDate(d.getDate() + offset);
@@ -58,7 +60,7 @@ export const ListView: React.FC<ListViewProps> = ({
         <p className="text-sm text-[#707974] mt-1">
           {isCompletedView
             ? 'เมื่อทำการบ้านหรือกิจกรรมเสร็จแล้ว สามารถกดเปลี่ยนสถานะเป็น "เสร็จแล้ว" เพื่อย้ายมาที่นี่ได้เลย'
-            : 'คุณสามารถกดปุ่ม "+ เพิ่มงาน" หรือใช้ "AI ช่วยจด" เพื่อสร้างรายการใหม่ได้เลย'}
+            : 'คุณสามารถกดปุ่ม "+ เพิ่มงาน" เพื่อสร้างรายการใหม่ได้เลย'}
         </p>
       </div>
     );
@@ -68,8 +70,11 @@ export const ListView: React.FC<ListViewProps> = ({
     <div className="flex flex-col gap-8 max-w-5xl mx-auto">
       {/* Title Header */}
       <div className="px-2 -mb-2">
-        <h2 className="font-['Plus_Jakarta_Sans','Noto_Sans_Thai'] text-2xl sm:text-3xl font-extrabold text-[#296956]">
-          {isCompletedView ? 'งานที่ทำเสร็จแล้ว ✅' : 'งานที่ต้องทำ'}
+        <h2 className="font-['Plus_Jakarta_Sans','Noto_Sans_Thai'] font-extrabold text-[#296956] flex items-center gap-2">
+          <span style={{ fontSize: '15px' }}>{isCompletedView ? 'งานที่ทำเสร็จแล้ว ✅' : 'งานที่ต้องทำ'}</span>
+          <span className="text-[#707974] bg-[#f0e7dc] px-2 py-0.5 rounded-full font-bold inline-flex items-center justify-center" style={{ fontSize: '9px' }}>
+            {tasks.length}
+          </span>
         </h2>
         <p className="text-[#404945] text-sm mt-0.5">
           {isCompletedView
@@ -159,6 +164,17 @@ export const ListView: React.FC<ListViewProps> = ({
                           สถานที่: {task.location}
                         </p>
                       )}
+                      {/* Attachments (Word Online, PDF, Drive, Files) & Image */}
+                      {(task.attachments?.length || task.imageUrl) && (
+                        <div className="mt-2 z-20">
+                          <AttachmentList
+                            attachments={task.attachments}
+                            imageUrl={task.imageUrl}
+                            mode="compact"
+                            onPreviewImage={(url) => setPreviewImageUrl(url)}
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Bottom Row: Time/Deadline & Status Cycle Button */}
@@ -196,6 +212,30 @@ export const ListView: React.FC<ListViewProps> = ({
           </section>
         );
       })}
+
+      {/* Full Image Preview Modal */}
+      {previewImageUrl && (
+        <div
+          className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn"
+          onClick={() => setPreviewImageUrl(null)}
+        >
+          <div className="relative max-w-3xl max-h-[90vh] flex flex-col items-center">
+            <img
+              src={previewImageUrl}
+              alt="รูปภาพขยาย"
+              className="max-w-full max-h-[80vh] object-contain rounded-2xl shadow-2xl"
+            />
+            <button
+              type="button"
+              onClick={() => setPreviewImageUrl(null)}
+              className="mt-3 px-5 py-2 rounded-full bg-white text-[#1f1b15] font-extrabold text-sm shadow-lg hover:bg-[#e2f5ee] transition-all flex items-center gap-1 cursor-pointer"
+            >
+              <span className="material-symbols-outlined text-[18px]">close</span>
+              <span>ปิดหน้าต่าง</span>
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

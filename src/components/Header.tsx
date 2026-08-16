@@ -10,7 +10,8 @@ interface HeaderProps {
   onOpenAi: () => void;
   onOpenAdd: () => void;
   onOpenSettings: () => void;
-  onLogout: () => void;
+  onGoHome?: () => void;
+  onOpenInstallPwa?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -23,7 +24,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenAi,
   onOpenAdd,
   onOpenSettings,
-  onLogout,
+  onGoHome,
+  onOpenInstallPwa,
 }) => {
   const formatTimeAgo = (date: Date | null) => {
     if (!date) return '—';
@@ -45,50 +47,74 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header className="w-full sticky top-0 bg-[#fff8f3]/90 dark:bg-[#e2d9ce]/90 z-40 rounded-b-2xl px-4 md:px-0 py-3 shadow-sm backdrop-blur-md transition-all">
       <div className="flex items-center justify-between h-16 w-full max-w-7xl mx-auto">
-        {/* Leading Avatar & Kid Name */}
-        <div className="flex items-center gap-3 cursor-pointer group" onClick={onOpenSettings}>
-          <div className="relative">
-            <img
-              className="w-11 h-11 rounded-full object-cover border-2 border-[#98d8c1] shadow-sm group-hover:scale-105 transition-transform"
-              src={avatarUrl}
-              alt="Avatar"
-            />
-            <div
-              className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-white rounded-full ${
-                syncStatus === 'syncing'
-                  ? 'bg-[#8ed5f2] animate-ping'
-                  : syncStatus === 'error'
-                  ? 'bg-[#ff9e9e]'
-                  : 'bg-[#98d8c1]'
-              }`}
-            />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="font-['Plus_Jakarta_Sans','Noto_Sans_Thai'] text-xl md:text-2xl text-[#296956] font-extrabold tracking-tight flex items-center gap-1.5">
-              <span>{childName}</span>
-              {childGrade && (
-                <span className="text-xs bg-[#aff0d8] text-[#002118] px-2 py-0.5 rounded-full font-bold">
-                  {childGrade}
-                </span>
-              )}
-            </h1>
+        {/* Leading Avatar & Kid Name + Back to Landing Button */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {onGoHome && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onRefresh();
-              }}
-              className="text-xs text-[#707974] font-semibold flex items-center gap-1 hover:text-[#296956] transition-colors text-left"
+              onClick={onGoHome}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-2xl bg-white border-2 border-[#eae1d6] text-[#296956] font-bold text-xs sm:text-sm hover:bg-[#f0f9f5] active:scale-95 transition-all shadow-xs cursor-pointer"
+              title="สลับเลือกลูกเรียนคนอื่น"
             >
-              <span className="material-symbols-outlined text-[14px] text-[#296956]">
-                {syncStatus === 'syncing' ? 'sync' : syncStatus === 'error' ? 'sync_problem' : 'cloud_done'}
-              </span>
-              <span>{getSyncText()}</span>
+              <span className="material-symbols-outlined text-[18px]">home</span>
+              <span className="hidden sm:inline">สลับคน</span>
             </button>
+          )}
+
+          <div className="flex items-center gap-2.5 cursor-pointer group" onClick={onOpenSettings}>
+            <div className="relative">
+              <img
+                className="w-10 h-10 sm:w-11 sm:h-11 rounded-full object-cover border-2 border-[#98d8c1] shadow-xs group-hover:scale-105 transition-transform"
+                src={avatarUrl}
+                alt="Avatar"
+              />
+              <div
+                className={`absolute bottom-0 right-0 w-3.5 h-3.5 border-2 border-white rounded-full ${
+                  syncStatus === 'syncing'
+                    ? 'bg-[#8ed5f2] animate-ping'
+                    : syncStatus === 'error'
+                    ? 'bg-[#ff9e9e]'
+                    : 'bg-[#98d8c1]'
+                }`}
+              />
+            </div>
+            <div className="flex flex-col">
+              <h1 className="font-['Plus_Jakarta_Sans','Noto_Sans_Thai'] text-[#296956] font-extrabold tracking-tight flex items-center gap-1.5" style={{ fontSize: '18px' }}>
+                <span>{childName}</span>
+                {childGrade && (
+                  <span className="text-[11px] sm:text-xs bg-[#aff0d8] text-[#002118] px-2 py-0.5 rounded-full font-bold">
+                    {childGrade}
+                  </span>
+                )}
+              </h1>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRefresh();
+                }}
+                className="text-[11px] sm:text-xs text-[#707974] font-semibold flex items-center gap-1 hover:text-[#296956] transition-colors text-left"
+              >
+                <span className="material-symbols-outlined text-[13px] text-[#296956]">
+                  {syncStatus === 'syncing' ? 'sync' : syncStatus === 'error' ? 'sync_problem' : 'cloud_done'}
+                </span>
+                <span style={{ fontSize: '7px' }}>{getSyncText()}</span>
+              </button>
+            </div>
           </div>
         </div>
 
         {/* Trailing Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Install PWA Button */}
+          {onOpenInstallPwa && (
+            <button
+              onClick={onOpenInstallPwa}
+              className="p-2 rounded-full bg-[#e2f5ee] hover:bg-[#d0ece1] text-[#296956] active:scale-90 transition-transform"
+              title="วิธีติดตั้งลงมือถือ"
+            >
+              <span className="material-symbols-outlined text-[20px]">add_to_home_screen</span>
+            </button>
+          )}
+
           {/* AI Helper Button */}
           <button
             onClick={onOpenAi}
@@ -132,15 +158,6 @@ export const Header: React.FC<HeaderProps> = ({
             title="ตั้งค่า"
           >
             <span className="material-symbols-outlined text-[20px]">settings</span>
-          </button>
-
-          {/* Logout Button */}
-          <button
-            onClick={onLogout}
-            className="p-2 rounded-full hover:bg-[#ffdad6] text-[#ba1a1a] active:scale-90 transition-transform"
-            title="ออกจากระบบ"
-          >
-            <span className="material-symbols-outlined text-[20px]">logout</span>
           </button>
         </div>
       </div>
